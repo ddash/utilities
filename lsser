@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# todo[DONE]: filter on ttyUSB in the devname and CP2104 in the ID_SERIAL
+# todo[DONE]: add a -a (print all) and -h (help/usage) flag
+
+# todo: replace ifelse with getopts
+# todo: merge print_all and print_UART functions
+
+# help function
+function print_usage(){
+    binname=$(basename $0)
+    echo "lsser - Script to print a list of connected USB devices"
+    echo " "
+    echo "$binname : print only connected CP2104 UARTs"
+    echo "$binname -h : print all connected USB devices"
+    echo " "
+}
+
+# print all USBs
+function print_all(){
+    # devices which show up in /dev have a dev file in their /sys directory
+    for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev); do
+    (
+        syspath="${sysdevpath%/dev}" # strip off the /dev
+        devname="$(udevadm info -q name -p $syspath)" # path in /dev corresponding to this /sys device
+        [[ "$devname" == "bus/"* ]] && continue # filter out non-devices
+        eval "$(udevadm info -q property --export -p $syspath)" # list properties that can be parsed by shell
+        [[ -z "$ID_SERIAL" ]] && continue # more filtering for non-devices
+        echo "/dev/$devname - $ID_SERIAL" # print
+    )
+    done
+}
+
+# print only CP2104 UARTs
+function print_UART(){
+    for sysdevpath in $(find /sys/bus/usb/devices/usb*/ -name dev); do
+    (
+        syspath="${sysdevpath%/dev}"
+        devname="$(udevadm info -q name -p $syspath)"
+        [[ "$devname" == "bus/"* ]] && continue
+        eval "$(udevadm info -q property --export -p $syspath)"
+        [[ -z "$ID_SERIAL" ]] && continue
+
+        chipname=$(echo "$ID_SERIAL" | awk -F'_' '($3 == "CP2104") {print $NF}')
+        if [[ $chipname != "" ]];then
+            echo "$chipname - $devname"
+        fi
+    )
+    done
+}
+
+# Main function
+function main(){
+    if [[ $1 == '-a' ]];then
+        echo "List of all USB devices: "
+        echo "========================"
+        print_all
+        echo " "
+    elif [[ $1 == '-h' ]]; then
+        print_usage
+    else
+        echo "List of CP2104 UARTs: "
+        echo "====================="
+        print_UART
+        echo " "
+    fi
+}
+
+main
