@@ -1,0 +1,27 @@
+#!/bin/bash
+
+if [ $# -lt 1 ];then
+    echo "Usage: `basename $0` <usb num>"
+    echo "use lsser to find the usb number"
+    echo "special macros: ap/sta/sniff"
+    echo " "
+    exit 1
+fi
+
+function conn_serial(){
+    if [[ -e /dev/$1 ]];then
+        sudo picocom /dev/$1 -b 115200
+    else
+        echo "/dev/$1" does not exist
+    fi
+}
+
+if [[ $1 == "ap" ]]; then
+    conn_serial qap
+elif [[ $1 == "sniff" ]]; then
+    conn_serial qsniff
+elif [[ $1 == "sta" ]]; then
+    conn_serial qsta
+else
+    conn_serial ttyUSB$1
+fi
